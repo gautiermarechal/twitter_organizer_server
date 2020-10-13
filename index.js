@@ -70,7 +70,7 @@ app.put("/user/:id", async (req, res) => {
 
 //Delete a user
 
-app.delete("user/:id", async (req, res) => {
+app.delete("/user/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const deleteUser = await pool.query("DELETE FROM person WHERE id = $1", [
@@ -86,14 +86,14 @@ app.delete("user/:id", async (req, res) => {
 //Create an organized tweet
 app.post("/tweet-organized", async (req, res) => {
   try {
-    const user_id = req.body.user_id;
     const content = req.body.content;
     const category = req.body.category;
     const date = req.body.date;
-
+    const user_name = req.body.user_name;
+    const user_screen_name = req.body.user_screen_name;
     const newTweetOrganized = await pool.query(
-      "INSERT INTO tweet_organized (user_id, tweet_organized_content, tweet_organized_category, tweet_organized_date) VALUES($1, $2, $3, $4)",
-      [user_id, content, category, date]
+      "INSERT INTO tweet_organized (tweet_organized_content, tweet_organized_category, tweet_organized_date, user_name, user_screen_name) VALUES($1, $2, $3, $4, $5)",
+      [content, category, date, user_name, user_screen_name]
     );
 
     res.json(newTweetOrganized);
@@ -130,6 +130,21 @@ app.get("/tweets", async (req, res) => {
   }
 });
 
+//Get all tweets of a category
+app.get("/tweets/:category", async (req, res) => {
+  try {
+    const { category } = req.params;
+    console.log(category);
+    const allCategoryTweets = await pool.query(
+      "SELECT * FROM tweet_organized WHERE tweet_organized_category = $1;",
+      [category]
+    );
+    res.json(allCategoryTweets.rows);
+  } catch (err) {
+    console.log(err);
+  }
+});
+
 //Get all tweets of a user
 app.get("/tweet-organized/user/:id", async (req, res) => {
   const { id } = req.params;
@@ -142,7 +157,7 @@ app.get("/tweet-organized/user/:id", async (req, res) => {
 });
 
 //Delete a tweet
-app.delete("tweet-organized/:id", async (req, res) => {
+app.delete("/tweet-organized/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const deleteTweet = await pool.query(
