@@ -51,6 +51,21 @@ app.get("/user/:id", async (req, res) => {
   }
 });
 
+//Get a user by email
+
+app.get("/user/email/:email", async (req, res) => {
+  try {
+    const { email } = req.params;
+    const user = await pool.query("SELECT * FROM person WHERE email = $1", [
+      email,
+    ]);
+
+    res.json(user.rows);
+  } catch (err) {
+    console.log(err);
+  }
+});
+
 //Update a user
 
 app.put("/user/:id", async (req, res) => {
