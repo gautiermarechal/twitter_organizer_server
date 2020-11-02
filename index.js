@@ -9,6 +9,13 @@ app.use(express.json());
 
 //Routes
 
+//Home
+app.get("/", (req, res) => {
+  res
+    .status(200)
+    .json({ status: 200, message: "Server is running on port 5000" });
+});
+
 //Create a user
 app.post("/user", async (req, res) => {
   try {
@@ -186,7 +193,27 @@ app.delete("/tweet-organized/:id", async (req, res) => {
   }
 });
 
-//Edit a tweet
+//Add a bookmarked tweet to users' tweets
+app.patch("/tweets/bookmark/:userid/:tweetid", async (req, res) => {
+  try {
+    const tweetid = req.params.tweetid;
+    const userid = req.params.userid;
+    const bookmarkedTweet = await pool.query(
+      "UPDATE person SET tweets_bookmarked = array_append(tweets_bookmarked, $1) WHERE id = $2",
+      [tweetid, userid]
+    );
+    res.status(200).json({
+      status: 200,
+      message: "Tweet bookmarked!",
+      data: bookmarkedTweet,
+    });
+  } catch (error) {
+    res.status(404).json({
+      status: 404,
+      message: error,
+    });
+  }
+});
 
 app.listen(5000, () => {
   console.log("server has started on port 5000");
