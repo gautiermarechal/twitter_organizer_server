@@ -215,6 +215,35 @@ app.patch("/tweets/bookmark/:userid/:tweetid", async (req, res) => {
   }
 });
 
+//Get all tweets bookmarked from user
+app.get("/tweets/bookmark/:userid", async (req, res) => {
+  try {
+    const userid = req.params.userid;
+    const bookmarkedTweetsIds = await pool.query(
+      "SELECT tweets_bookmarked FROM person WHERE id = $1",
+      [userid]
+    );
+    const bookmarkedTweetsArray = await Promise.all(
+      await bookmarkedTweetsIds.rows[0].tweets_bookmarked.map(
+        async (id) =>
+          await pool.query(
+            "SELECT * FROM tweet_organized WHERE tweet_organized_id = $1",
+            [id]
+          )
+      )
+    );
+    res.status(200).json({
+      status: 200,
+      data: bookmarkedTweetsArray.map((promise) => promise.rows[0]),
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 500,
+      error: error.message,
+    });
+  }
+});
+
 app.listen(5000, () => {
   console.log("server has started on port 5000");
 });
