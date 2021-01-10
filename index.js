@@ -172,11 +172,11 @@ app.get("/tweets/:category", async (req, res) => {
 app.get("/tweet-organized/user/:id", async (req, res) => {
   const { id } = req.params;
   const tweets = await pool.query(
-    "SELECT * FROM tweet_organized WHERE user_id = $1",
+    "SELECT * FROM tweet_organized WHERE user_screen_name = $1",
     [id]
   );
 
-  res.json(tweets.rows);
+  res.status(200).json({ status: 200, data: tweets.rows });
 });
 
 //Delete a tweet
@@ -229,6 +229,50 @@ app.delete("/tweets/bookmark/:userid/:tweetid", async (req, res) => {
       status: 200,
       message: "Tweet Unbookmarked!",
       data: tweetToUnBookmark,
+    });
+  } catch (error) {
+    res.status(404).json({
+      status: 404,
+      message: error,
+    });
+  }
+});
+
+//Add author followed in user
+app.patch("/user/follow/:currentuserid/:username", async (req, res) => {
+  try {
+    const currentuserid = req.params.currentuserid;
+    const username = req.params.username;
+    const authorFollowed = await pool.query(
+      "UPDATE person SET authors_followed = array_append(authors_followed, $1) WHERE id = $2",
+      [username, currentuserid]
+    );
+    res.status(200).json({
+      status: 200,
+      message: "Author followed!",
+      data: authorFollowed,
+    });
+  } catch (error) {
+    res.status(404).json({
+      status: 404,
+      message: error,
+    });
+  }
+});
+
+//Unfollow author
+app.delete("/user/follow/:currentuserid/:username", async (req, res) => {
+  try {
+    const currentuserid = req.params.currentuserid;
+    const username = req.params.username;
+    const authorToUnfollow = await pool.query(
+      "UPDATE person SET authors_followed = array_remove(authors_followed, $1) WHERE id = $2",
+      [username, currentuserid]
+    );
+    res.status(200).json({
+      status: 200,
+      message: "Tweet Unbookmarked!",
+      data: authorToUnfollow,
     });
   } catch (error) {
     res.status(404).json({
