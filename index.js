@@ -2,6 +2,9 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const pool = require("./db");
+const axios = require("axios");
+const needle = require("needle");
+require("dotenv").config();
 
 //middleware
 app.use(cors());
@@ -28,7 +31,6 @@ app.post("/user", async (req, res) => {
     );
 
     res.json(newUser);
-    console.log(req.body);
   } catch (err) {
     console.log(err.message);
   }
@@ -119,7 +121,6 @@ app.post("/tweet-organized", async (req, res) => {
     );
 
     res.json(newTweetOrganized);
-    console.log(req.body);
   } catch (err) {
     console.log(err.message);
   }
@@ -215,6 +216,28 @@ app.patch("/tweets/bookmark/:userid/:tweetid", async (req, res) => {
   }
 });
 
+//Unbookmark a tweet
+app.delete("/tweets/bookmark/:userid/:tweetid", async (req, res) => {
+  try {
+    const tweetid = req.params.tweetid;
+    const userid = req.params.userid;
+    const tweetToUnBookmark = await pool.query(
+      "UPDATE person SET tweets_bookmarked = array_remove(tweets_bookmarked, $1) WHERE id = $2",
+      [tweetid, userid]
+    );
+    res.status(200).json({
+      status: 200,
+      message: "Tweet Unbookmarked!",
+      data: tweetToUnBookmark,
+    });
+  } catch (error) {
+    res.status(404).json({
+      status: 404,
+      message: error,
+    });
+  }
+});
+
 //Get all tweets bookmarked from user
 app.get("/tweets/bookmark/:userid", async (req, res) => {
   try {
@@ -232,6 +255,7 @@ app.get("/tweets/bookmark/:userid", async (req, res) => {
           )
       )
     );
+
     res.status(200).json({
       status: 200,
       data: bookmarkedTweetsArray.map((promise) => promise.rows[0]),
@@ -241,6 +265,31 @@ app.get("/tweets/bookmark/:userid", async (req, res) => {
       status: 500,
       error: error.message,
     });
+  }
+});
+
+//Get user data from twitter API
+app.get("/twitter-api/user/:id", async (req, res) => {
+  const endpointURL = "https://api.twitter.com/2/users/by?usernames=";
+  const userid = req.params.id;
+  const token = process.env.BEARER_TOKEN;
+  const params = {
+    usernames: userid,
+    "user.fields": "created_at,description,profile_image_url",
+  };
+  try {
+    const response = await needle("get", endpointURL, params, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    if (response.body) {
+      console.log(response.body);
+      res.status(200).json({ status: 200, data: response.body.data[0] });
+    } else {
+      res.status(500).json({ status: 500, error: "Unsuccessfull request" });
+    }
+  } catch (err) {
+    res.status(500).json({ status: 500, error: err.message });
   }
 });
 
