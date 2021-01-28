@@ -327,13 +327,97 @@ app.get("/twitter-api/user/:id", async (req, res) => {
     });
 
     if (response.body) {
-      console.log(response.body);
       res.status(200).json({ status: 200, data: response.body.data[0] });
     } else {
       res.status(500).json({ status: 500, error: "Unsuccessfull request" });
     }
   } catch (err) {
     res.status(500).json({ status: 500, error: err.message });
+  }
+});
+
+//Get all categories followed
+app.get("/category/followed/:userid", async (req, res) => {
+  try {
+    const userid = req.params.userid;
+    const categoriesFollowed = await pool.query(
+      "SELECT categories_followed FROM person WHERE id = $1",
+      [userid]
+    );
+
+    res.status(200).json({ status: 200, data: categoriesFollowed.rows });
+  } catch (error) {
+    res.status(500).json({ status: 500, error: error.message });
+  }
+});
+
+//Follow Category
+app.patch("/category/follow/:currentuserid/:name/", async (req, res) => {
+  try {
+    const currentuserid = req.params.currentuserid;
+    const categoryName = req.params.name;
+    const categoryFollowed = await pool.query(
+      "UPDATE person SET categories_followed = array_append(categories_followed, $1) WHERE id = $2",
+      [categoryName, currentuserid]
+    );
+    res.status(200).json({
+      status: 200,
+      message: "Category followed!",
+      data: categoryFollowed,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 500,
+      message: error,
+    });
+  }
+});
+
+//UnFollow Category
+app.delete("/category/unfollow/:currentuserid/:name/", async (req, res) => {
+  try {
+    const currentuserid = req.params.currentuserid;
+    const categoryName = req.params.name;
+    const categoryUnFollowed = await pool.query(
+      "UPDATE person SET categories_followed = array_remove(categories_followed, $1) WHERE id = $2",
+      [categoryName, currentuserid]
+    );
+    res.status(200).json({
+      status: 200,
+      message: "Category unfollowed!",
+      data: categoryUnFollowed,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 500,
+      message: error,
+    });
+  }
+});
+
+//Get user feed tweets
+app.get("/feed/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    //Get all user_screen_name
+    let allScreenNamesNoDuplicates = [];
+
+    pool
+      .query("SELECT user_screen_name FROM tweet_organized")
+      .then((response) => {
+        allScreenNamesDuplicates = [
+          ...new Set(response.rows.map((user) => user.user_screen_name)),
+        ].filter((name) => name !== null);
+      });
+
+    //Get tweets from followed authors
+    // const tweetsAuthorsFollowed = await pool.query(
+    //   "SELECT * FROM tweet_organized WHERE user_screen_name = $1",
+    //   [id]
+    // );
+    res.status(200).json({ status: 200, data: allScreenNamesNoDuplicates });
+  } catch (error) {
+    res.status(500).json({ status: 500, message: error.message });
   }
 });
 
