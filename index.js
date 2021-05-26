@@ -4,6 +4,7 @@ const cors = require("cors");
 const pool = require("./db");
 const axios = require("axios");
 const needle = require("needle");
+const { parse } = require("uuid");
 require("dotenv").config();
 
 //middleware
@@ -286,8 +287,10 @@ app.delete("/user/follow/:currentuserid/:username", async (req, res) => {
 app.get("/tweets/bookmark/:userid", async (req, res) => {
   try {
     const userid = req.params.userid;
+
+    console.log(userid);
     const bookmarkedTweetsIds = await pool.query(
-      "SELECT tweets_bookmarked FROM person WHERE id = $1",
+      "SELECT tweets_bookmarked FROM person WHERE id::text = $1",
       [userid]
     );
     const bookmarkedTweetsArray = await Promise.all(
@@ -395,26 +398,55 @@ app.delete("/category/unfollow/:currentuserid/:name/", async (req, res) => {
   }
 });
 
+//Create twitter user in database
+app.post("/twitter_user", (req, res) => {
+  try {
+    const { user } = req.body;
+
+    pool.query(
+      "INSERT INTO twitter_user (id, tweets_organized) VALUES($1, $2) RETURNING *;",
+      [user.id, user.tweets]
+    );
+    res
+      .status(200)
+      .json({ status: 200, message: "Twitter User created!", data: user });
+  } catch (error) {
+    res.status(500).json({ status: 500, message: error.message });
+  }
+});
+
 //Get user feed tweets
 app.get("/feed/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    //Get tweets from authors followed-------------------
     //Get all user_screen_name
     let allScreenNamesNoDuplicates = [];
 
     pool
       .query("SELECT user_screen_name FROM tweet_organized")
       .then((response) => {
-        allScreenNamesDuplicates = [
+        allScreenNamesNoDuplicates = [
           ...new Set(response.rows.map((user) => user.user_screen_name)),
         ].filter((name) => name !== null);
       });
 
-    //Get tweets from followed authors
-    // const tweetsAuthorsFollowed = await pool.query(
-    //   "SELECT * FROM tweet_organized WHERE user_screen_name = $1",
-    //   [id]
-    // );
+    //Get all authors followed
+    pool
+      .query("SELECT authors_followed FROM person WHERE id = $1", [id])
+      .then((response) => {
+        const tweetsAuthorsFollowed = Promise.all(
+          response.rows[0].authors_followed.map((authorName) => {
+            //Get tweets from followed authors
+            return pool.query(
+              "SELECT * FROM tweet_organized WHERE user_screen_name = $1",
+              [authorName]
+            );
+          })
+        );
+        console.log(tweetsAuthorsFollowed);
+      });
+
     res.status(200).json({ status: 200, data: allScreenNamesNoDuplicates });
   } catch (error) {
     res.status(500).json({ status: 500, message: error.message });
