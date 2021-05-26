@@ -204,10 +204,15 @@ app.patch("/tweets/bookmark/:userid/:tweetid", async (req, res) => {
       "UPDATE person SET tweets_bookmarked = array_append(tweets_bookmarked, $1) WHERE id = $2",
       [tweetid, userid]
     );
+
+    const bookmarksInTweet = await pool.query(
+      "UPDATE tweet_organized SET bookmarks = array_append(bookmarks, $1) WHERE tweet_organized_id = $2",
+      [userid, tweetid]
+    );
     res.status(200).json({
       status: 200,
       message: "Tweet bookmarked!",
-      data: bookmarkedTweet,
+      data: { tweet: bookmarkedTweet, bookmarkedBy: userid },
     });
   } catch (error) {
     res.status(404).json({
@@ -226,10 +231,15 @@ app.delete("/tweets/bookmark/:userid/:tweetid", async (req, res) => {
       "UPDATE person SET tweets_bookmarked = array_remove(tweets_bookmarked, $1) WHERE id = $2",
       [tweetid, userid]
     );
+
+    const bookmarksInTweet = await pool.query(
+      "UPDATE tweet_organized SET bookmarks = array_remove(bookmarks, $1) WHERE tweet_organized_id = $2",
+      [userid, tweetid]
+    );
     res.status(200).json({
       status: 200,
       message: "Tweet Unbookmarked!",
-      data: tweetToUnBookmark,
+      data: { tweet: tweetToUnBookmark, unBookmarkedBy: userid },
     });
   } catch (error) {
     res.status(404).json({
@@ -289,6 +299,7 @@ app.get("/tweets/bookmark/:userid", async (req, res) => {
     const userid = req.params.userid;
 
     console.log(userid);
+    console.log(parse(userid));
     const bookmarkedTweetsIds = await pool.query(
       "SELECT tweets_bookmarked FROM person WHERE id::text = $1",
       [userid]
@@ -297,7 +308,7 @@ app.get("/tweets/bookmark/:userid", async (req, res) => {
       await bookmarkedTweetsIds.rows[0].tweets_bookmarked.map(
         async (id) =>
           await pool.query(
-            "SELECT * FROM tweet_organized WHERE tweet_organized_id = $1",
+            "SELECT * FROM tweet_organized WHERE tweet_organized_id::text = $1",
             [id]
           )
       )
