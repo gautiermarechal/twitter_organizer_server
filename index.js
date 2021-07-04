@@ -298,8 +298,6 @@ app.get("/tweets/bookmark/:userid", async (req, res) => {
   try {
     const userid = req.params.userid;
 
-    console.log(userid);
-    console.log(parse(userid));
     const bookmarkedTweetsIds = await pool.query(
       "SELECT tweets_bookmarked FROM person WHERE id::text = $1",
       [userid]
@@ -371,7 +369,7 @@ app.patch("/category/follow/:currentuserid/:name/", async (req, res) => {
     const currentuserid = req.params.currentuserid;
     const categoryName = req.params.name;
     const categoryFollowed = await pool.query(
-      "UPDATE person SET categories_followed = array_append(categories_followed, $1) WHERE id = $2",
+      "UPDATE person SET categories_followed = array_append(categories_followed, $1) WHERE id::text = $2",
       [categoryName, currentuserid]
     );
     res.status(200).json({
@@ -382,7 +380,7 @@ app.patch("/category/follow/:currentuserid/:name/", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       status: 500,
-      message: error,
+      message: error.message,
     });
   }
 });
@@ -393,7 +391,7 @@ app.delete("/category/unfollow/:currentuserid/:name/", async (req, res) => {
     const currentuserid = req.params.currentuserid;
     const categoryName = req.params.name;
     const categoryUnFollowed = await pool.query(
-      "UPDATE person SET categories_followed = array_remove(categories_followed, $1) WHERE id = $2",
+      "UPDATE person SET categories_followed = array_remove(categories_followed, $1) WHERE id::text = $2",
       [categoryName, currentuserid]
     );
     res.status(200).json({
@@ -455,12 +453,77 @@ app.get("/feed/:id", async (req, res) => {
             );
           })
         );
-        console.log(tweetsAuthorsFollowed);
       });
 
     res.status(200).json({ status: 200, data: allScreenNamesNoDuplicates });
   } catch (error) {
     res.status(500).json({ status: 500, message: error.message });
+  }
+});
+
+// Get all categories
+app.get("/categories", async (req, res) => {
+  try {
+    const { limit } = req.query;
+    let categories;
+    if (limit) {
+      categories = await pool.query("SELECT * FROM categories LIMIT $1;", [
+        limit,
+      ]);
+    } else {
+      categories = await pool.query("SELECT * FROM categories;");
+    }
+    res.status(200).json({ status: 200, data: categories.rows });
+  } catch (error) {
+    res.status(500).json({ status: 500, message: error.message });
+  }
+});
+
+//Search for categories
+app.get("/categories/search/:query", async (req, res) => {
+  try {
+    const { query } = req.params;
+    console.log(query);
+    const results = await pool.query(
+      "SELECT * FROM categories WHERE id LIKE $1;",
+      [`${query}%`]
+    );
+
+    res.status(200).json({ status: 200, data: results.rows });
+  } catch (error) {
+    res.status(500).json[{ status: 500, error: error.message }];
+  }
+});
+
+//Search for twitter organizer users when twitter auth done
+// app.get("/users/search/:query", async (req, res) => {
+//   try {
+//     const { query } = req.params;
+//     console.log(query);
+//     const results = await pool.query(
+//       "SELECT * FROM person WHERE  LIKE $1;",
+//       [`${query}%`]
+//     );
+
+//     res.status(200).json({ status: 200, data: results.rows });
+//   } catch (error) {
+//     res.status(500).json[{ status: 500, error: error.message }];
+//   }
+// });
+
+//Search for tweet organized
+app.get("/tweet-organized/search/:query", async (req, res) => {
+  try {
+    const { query } = req.params;
+    console.log(`${query}%`);
+    const results = await pool.query(
+      "SELECT * FROM tweet_organized WHERE tweet_organized_category LIKE $1;",
+      [`${query}%`]
+    );
+
+    res.status(200).json({ status: 200, data: results.rows });
+  } catch (error) {
+    res.status(500).json[{ status: 500, error: error.message }];
   }
 });
 
