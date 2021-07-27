@@ -158,7 +158,6 @@ app.get("/tweets", async (req, res) => {
 app.get("/tweets/:category", async (req, res) => {
   try {
     const { category } = req.params;
-    console.log(category);
     const allCategoryTweets = await pool.query(
       "SELECT * FROM tweet_organized WHERE tweet_organized_category = $1;",
       [category]
@@ -334,12 +333,19 @@ app.get("/twitter-api/user/:id", async (req, res) => {
     "user.fields": "created_at,description,profile_image_url",
   };
   try {
+    if (userid.length < 3) {
+      throw new Error("User id too short.");
+    }
     const response = await needle("get", endpointURL, params, {
       headers: { authorization: `Bearer ${token}` },
     });
 
     if (response.body) {
-      res.status(200).json({ status: 200, data: response.body.data[0] });
+      if (response.body.data[0]) {
+        res.status(200).json({ status: 200, data: response.body.data[0] });
+      } else {
+        res.status(200).json({ status: 200, data: {} });
+      }
     } else {
       res.status(500).json({ status: 500, error: "Unsuccessfull request" });
     }
@@ -482,8 +488,7 @@ app.get("/categories", async (req, res) => {
 //Search for categories
 app.get("/categories/search/:query", async (req, res) => {
   try {
-    const { query } = req.params;
-    console.log(query);
+    const query = req.params.query.toLowerCase();
     const results = await pool.query(
       "SELECT * FROM categories WHERE id LIKE $1;",
       [`${query}%`]
@@ -495,29 +500,29 @@ app.get("/categories/search/:query", async (req, res) => {
   }
 });
 
-//Search for twitter organizer users when twitter auth done
-// app.get("/users/search/:query", async (req, res) => {
-//   try {
-//     const { query } = req.params;
-//     console.log(query);
-//     const results = await pool.query(
-//       "SELECT * FROM person WHERE  LIKE $1;",
-//       [`${query}%`]
-//     );
+//Search for user who organized a tweet
+app.get("/organizer-user/search/:query", async (req, res) => {
+  try {
+    const query = req.params.query.toLowerCase();
+    // Add condition for tweet organized content when content not null
+    const results = await pool.query(
+      "SELECT * FROM twitter_user WHERE LOWER(id) LIKE $1",
+      [`${query}%`]
+    );
 
-//     res.status(200).json({ status: 200, data: results.rows });
-//   } catch (error) {
-//     res.status(500).json[{ status: 500, error: error.message }];
-//   }
-// });
+    res.status(200).json({ status: 200, data: results.rows });
+  } catch (error) {
+    res.status(500).json[{ status: 500, error: error.message }];
+  }
+});
 
 //Search for tweet organized
 app.get("/tweet-organized/search/:query", async (req, res) => {
   try {
-    const { query } = req.params;
-    console.log(`${query}%`);
+    const query = req.params.query.toLowerCase();
+    // Add condition for tweet organized content when content not null
     const results = await pool.query(
-      "SELECT * FROM tweet_organized WHERE tweet_organized_category LIKE $1;",
+      "SELECT * FROM tweet_organized WHERE LOWER(tweet_organized_category) LIKE $1 OR LOWER(user_screen_name) LIKE $1",
       [`${query}%`]
     );
 
